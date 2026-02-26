@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tomfevang/go-work/internal/session"
 )
@@ -87,6 +88,7 @@ type dashboardModel struct {
 	eventCh     chan session.Event
 	list        list.Model
 	viewport    viewport.Model
+	renderer    *glamour.TermRenderer
 	width       int
 	height      int
 	focusedPane int // 0 = list, 1 = viewport
@@ -118,6 +120,8 @@ func newDashboard(
 	vp := viewport.New(vpWidth, height-4)
 	vp.SetContent("")
 
+	renderer := newRenderer(vpWidth)
+
 	return dashboardModel{
 		sessions:   sessions,
 		order:      order,
@@ -125,9 +129,22 @@ func newDashboard(
 		eventCh:    eventCh,
 		list:       l,
 		viewport:   vp,
+		renderer:   renderer,
 		width:      width,
 		height:     height,
 	}
+}
+
+func newRenderer(width int) *glamour.TermRenderer {
+	r, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(width),
+	)
+	if err != nil {
+		// Fallback: no-op renderer on error
+		r, _ = glamour.NewTermRenderer(glamour.WithAutoStyle())
+	}
+	return r
 }
 
 func (m dashboardModel) Init() tea.Cmd {
@@ -147,6 +164,8 @@ func (m dashboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetSize(leftPaneWidth, msg.Height-2)
 		m.viewport.Width = vpWidth
 		m.viewport.Height = msg.Height - 4
+		m.renderer = newRenderer(vpWidth)
+		m.refreshViewport()
 		return m, nil
 
 	case session.Event:
@@ -294,12 +313,28 @@ func (m *dashboardModel) refreshViewport() {
 		return
 	}
 	s := m.sessions[num]
-	content := s.Log
+
+	var raw string
 	if s.State == session.WaitingApproval && s.Plan != "" {
-		content = "=== PLAN ===\n\n" + s.Plan + "\n\n" + strings.Repeat("─", 40) + "\n"
+		raw = "## Plan\n\n" + s.Plan
+	} else {
+		raw = s.Log
 	}
+
+	content := m.renderMarkdown(raw)
 	m.viewport.SetContent(content)
 	m.viewport.GotoBottom()
+}
+
+func (m *dashboardModel) renderMarkdown(src string) string {
+	if m.renderer == nil || src == "" {
+		return src
+	}
+	out, err := m.renderer.Render(src)
+	if err != nil {
+		return src
+	}
+	return strings.TrimRight(out, "\n")
 }
 
 func (m dashboardModel) selectedIssueNum() (int, bool) {
