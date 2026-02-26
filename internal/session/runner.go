@@ -163,10 +163,7 @@ func runClaude(cwd, prompt string, allowedTools []string, send func(EventType, s
 			if msg.Error != "" {
 				return fullText.String(), fmt.Errorf("claude error: %s", msg.Error)
 			}
-			if msg.Result != "" {
-				fullText.WriteString(msg.Result)
-				send(EventOutput, msg.Result)
-			}
+			// msg.Result is the same text already streamed via assistant blocks; ignore it.
 		case "system":
 			if msg.Subtype == "init" {
 				send(EventOutput, "[session started]\n")
