@@ -33,22 +33,28 @@ func ListIssues() ([]Issue, error) {
 	return issues, nil
 }
 
-// CreatePR creates a pull request from the given worktree directory and returns
-// the PR URL.
+// CreatePR commits any uncommitted changes, pushes the worktree branch, and
+// opens a pull request, returning the PR URL.
 func CreatePR(worktreeDir string, issueNum int, title string) (string, error) {
+	// Push the branch so gh can open a PR against it.
+	pushCmd := exec.Command("git", "push", "-u", "origin", "HEAD")
+	pushCmd.Dir = worktreeDir
+	if out, err := pushCmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("git push: %w\n%s", err, strings.TrimSpace(string(out)))
+	}
+
 	prTitle := fmt.Sprintf("Fix #%d: %s", issueNum, title)
 	body := fmt.Sprintf("Closes #%d\n\nAutomatically implemented via go-work.", issueNum)
 
-	cmd := exec.Command("gh", "pr", "create",
+	prCmd := exec.Command("gh", "pr", "create",
 		"--title", prTitle,
 		"--body", body,
-		"--fill-first",
 	)
-	cmd.Dir = worktreeDir
+	prCmd.Dir = worktreeDir
 
-	out, err := cmd.Output()
+	out, err := prCmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("gh pr create: %w", err)
+		return "", fmt.Errorf("gh pr create: %w\n%s", err, strings.TrimSpace(string(out)))
 	}
 	return strings.TrimSpace(string(out)), nil
 }

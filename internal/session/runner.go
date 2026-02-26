@@ -91,7 +91,8 @@ func Run(issue Issue, repoRoot string, eventCh chan<- Event, approveCh <-chan bo
 		"Implement the following approved plan for GitHub issue #%d.\n\n"+
 			"ISSUE TITLE: %s\n\nISSUE BODY:\n%s\n\nAPPROVED PLAN:\n%s\n\n"+
 			"Write the code. After implementation, run the project's tests if a "+
-			"test command is available. Do NOT create a pull request.",
+			"test command is available. Then stage and commit all your changes with "+
+			"a descriptive commit message. Do NOT create a pull request.",
 		num, issue.Title, issue.Body, planText,
 	)
 
