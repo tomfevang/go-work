@@ -49,7 +49,7 @@ func (m appModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fmt.Fprintf(os.Stderr, "error loading issues: %v\n", msg.err)
 			return m, tea.Quit
 		}
-		sel := newIssueSelectModel(msg.issues)
+		sel := newIssueSelectModel(msg.issues, m.width, m.height)
 		m.current = sel
 		return m, sel.Init()
 
